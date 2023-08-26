@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Context } from "../store/appContext";
 import "../../styles/signupCliente.css";
 import { useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
 import logoGrande from '../../img/Dishdash-blanco-grande.png';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export const SingupCliente = () => {
   const { store, actions } = useContext(Context);
@@ -12,7 +12,7 @@ export const SingupCliente = () => {
   const navigate = useNavigate()
 
   useEffect( () =>{
-    console.log("asd")
+    
     if (Object.keys(store.user) == 0){
         navigate('/signup', { replace: true });
     }
@@ -20,16 +20,25 @@ export const SingupCliente = () => {
 
 }, []);
 
+const showToastAndNavigate = () => {
+  return new Promise((resolve) => {
+    toast.success('Sign up successfully', {         
+      autoClose: 1000,
+      onClose: resolve, // Resuelve la promesa cuando se cierra la notificación
+    });
+  });
+};
+
   const handleSignupCliente = async (e) => {
     e.preventDefault();
     // actions.signupCliente(formData.nombre, formData.apellido, formData.telefono, formData.nacimiento, formData.sexo, formData.calleNumero, formData.pisoPuerta, formData.instrucciones, formData.codigoPostal, formData.estado, formData.ciudad, formData.terminosCondiciones)
     if (formData.terminosCondiciones === false){
-      return Swal.fire("You have to agree to Terms and Conditions to be able to signup")
+        toast.error('You have to agree to Terms and Conditions to be able to signup');
     }
     else {
       const register = await actions.signupCliente(
         formData.nombre,
-        formData.apellido,
+        // formData.apellido,
         formData.telefono,
         formData.nacimiento,
         formData.sexo,
@@ -42,11 +51,12 @@ export const SingupCliente = () => {
       );
       if (register == true){
         setFormComplete(true)
-        navigate('/')
+        await showToastAndNavigate();
+        navigate('/', {replace: true})
+        
       }
       else {
-        if (register == false) {
-          Swal.fire ("Address not found try again")}
+          toast.error(register);
       }
     }
   };
@@ -57,7 +67,7 @@ export const SingupCliente = () => {
 
   const [formData, setFormData] = useState({
     nombre: "",
-    apellido: "",
+    // apellido: "",
     telefono: "",
     nacimiento: "",
     sexo: "",
@@ -70,9 +80,8 @@ export const SingupCliente = () => {
     terminosCondiciones: false,
   });
 
-  useEffect(() => {
-    console.log(formData);
-  }, [formData]);
+ 
+  
 
   return (
     <>
@@ -95,7 +104,7 @@ export const SingupCliente = () => {
                   htmlFor="exampleInputEmail1"
                   className="form-label signupCliente_label"
                 >
-                  Name
+                  Full Name
                 </label>
                 <input
                   type="nombre"
@@ -110,7 +119,7 @@ export const SingupCliente = () => {
                   required
                 />
               </div>
-              <div className="mb-3">
+              {/* <div className="mb-3">
                 <label
                   htmlFor="exampleInputPassword1"
                   className="form-label signupCliente_label"
@@ -128,71 +137,7 @@ export const SingupCliente = () => {
                   }}
                   required
                 />
-              </div>
-              <div className="row">
-                <div className="col-12 col-md-12 col-sm-12 mb-3">
-                  <label
-                    htmlFor="exampleInputPassword1"
-                    className="form-label signupCliente_label"
-                  >
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    pattern="[0-9]{9}"
-                    className="form-control"
-                    id="exampleInputPassword1"
-                    placeholder="Phone"
-                    value={formData.telefono}
-                    onChange={(data) => {
-                      setFormData({ ...formData, telefono: data.target.value });
-                    }}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6 col-sm-6 mb-3">
-                  <label
-                    htmlFor="exampleInputPassword1"
-                    className="form-label signupCliente_label"
-                  >
-                    Birthdate
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    id="exampleInputPassword1"
-                    placeholder="Birth Date"
-                    value={formData.nacimiento}
-                    onChange={(data) => {
-                      setFormData({
-                        ...formData,
-                        nacimiento: data.target.value,
-                      });
-                    }}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6 col-sm-6 mb-3">
-                  <label
-                    htmlFor="exampleInputPassword1"
-                    className="form-label signupCliente_label"
-                  >
-                    Sex
-                  </label>
-                  <select
-                    className="form-select"
-                    aria-label="Default select example"
-                    value={formData.sexo}
-                    onChange={(data) => {
-                      setFormData({ ...formData, sexo: data.target.value });
-                    }}
-                  >
-                    <option selected>Select</option>
-                    <option value="Female">Female</option>
-                    <option value="Male">Male</option>
-                  </select>
-                </div>
-              </div>
+              </div> */}
               <p className="signupCliente_label">Adress</p>
               <div className="row">
                 <div className="col-12 col-sm-6 mb-3">
@@ -271,7 +216,7 @@ export const SingupCliente = () => {
                     value={formData.estado}
                     onChange={(data) => {
                       setFormData({ ...formData, estado: data.target.value });
-                      console.log(formData);
+                      
                     }}
                     required
                   />
@@ -285,7 +230,7 @@ export const SingupCliente = () => {
                     value={formData.ciudad}
                     onChange={(data) => {
                       setFormData({ ...formData, ciudad: data.target.value });
-                      console.log(formData);
+                      
                     }}
                     required
                   />
@@ -309,7 +254,17 @@ export const SingupCliente = () => {
               >
                 Sign up
               </button>
-            </form>
+              <ToastContainer
+                position="bottom-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                closeOnClick
+                pauseOnHover
+                draggable
+                progress={undefined}
+                theme="colored"
+                />              
+              </form>
           </div>
         </div>
       </div>

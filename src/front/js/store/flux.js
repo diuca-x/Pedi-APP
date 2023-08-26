@@ -1,4 +1,5 @@
-import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const getState = ({ getStore, getActions, setStore }) => {
   return {
@@ -13,15 +14,19 @@ const getState = ({ getStore, getActions, setStore }) => {
       product: {},
       searchCompany: [],
       // company: null,
+      cart: {
+        products: [],
+        ammount: 0,
+      },
     },
 
     actions: {
       signupCliente: async (
         nombre,
-        apellido,
-        telefono,
-        nacimiento,
-        sexo,
+        // apellido,
+        // telefono,
+        // nacimiento,
+        // sexo,
         calleNumero,
         pisoPuerta,
         instrucciones,
@@ -33,10 +38,10 @@ const getState = ({ getStore, getActions, setStore }) => {
         const newClient = {
           //lo que ponga aqui tiene que coincidir con el models
           nombre: nombre,
-          apellido: apellido,
-          telefono: telefono,
-          nacimiento: nacimiento,
-          sexo: sexo,
+          // apellido: apellido,
+          // telefono: telefono,
+          // nacimiento: nacimiento,
+          // sexo: sexo,
           direccion: `${calleNumero}, ${pisoPuerta}, ${codigoPostal}, ${estado}, ${ciudad}`,
           instrucciones: instrucciones,
           email: store.user.email,
@@ -55,12 +60,122 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           const result = await response.json();
-          Swal.fire(result.message);
           if (response.status == 200) {
             console.log(response);
             return true;
           }
-          return false;
+          return result.message;
+        } catch (error) {
+          console.log(error);
+        }
+      },
+      addPhoneCliente: async (telefono) => {
+        const store = getStore();
+        const newClient = {
+          //lo que ponga aqui tiene que coincidir con el models
+          telefono: telefono,
+          idCliente: store.current_user_data.id,
+        };
+        try {
+          const token = localStorage.getItem("jwt-token");
+          const response = await fetch(
+            process.env.BACKEND_URL +
+              `/api/userProfile/info/${store.current_user_data.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(newClient),
+            }
+          );
+          const result = await response.json();
+          if (response.status == 200) {
+            setStore({
+              current_user_data: {
+                ...store.current_user_data,
+                telefono: telefono,
+              },
+            });
+            console.log(response);
+            return true;
+          }
+          return result.message;
+        } catch (error) {
+          console.log(error);
+        }
+      },
+      addBirthdayCliente: async (nacimiento) => {
+        const store = getStore();
+        const newClient = {
+          //lo que ponga aqui tiene que coincidir con el models
+          nacimiento: nacimiento,
+          idCliente: store.current_user_data.id,
+        };
+        try {
+          const token = localStorage.getItem("jwt-token");
+          const response = await fetch(
+            process.env.BACKEND_URL +
+              `/api/userProfile/info/${store.current_user_data.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(newClient),
+            }
+          );
+          const result = await response.json();
+          if (response.status == 200) {
+            setStore({
+              current_user_data: {
+                ...store.current_user_data,
+                nacimiento: nacimiento,
+              },
+            });
+            console.log(response);
+            return true;
+          }
+          return result.message;
+        } catch (error) {
+          console.log(error);
+        }
+      },
+      addSexCliente: async (sexo) => {
+        const store = getStore();
+        const newClient = {
+          //lo que ponga aqui tiene que coincidir con el models
+          sexo: sexo,
+          idCliente: store.current_user_data.id,
+        };
+        try {
+          const token = localStorage.getItem("jwt-token");
+          const response = await fetch(
+            process.env.BACKEND_URL +
+              `/api/userProfile/info/${store.current_user_data.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(newClient),
+            }
+          );
+          const result = await response.json();
+          if (response.status == 200) {
+            setStore({
+              current_user_data: {
+                ...store.current_user_data,
+                sexo: sexo,
+              },
+            });
+            console.log(response);
+            return true;
+          }
+          return result.message;
         } catch (error) {
           console.log(error);
         }
@@ -136,7 +251,6 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           const result = await response.json();
-          Swal.fire(result.message);
           if (response.status == 200) {
             return true;
           }
@@ -210,6 +324,18 @@ const getState = ({ getStore, getActions, setStore }) => {
                 current_user_data: {
                   ...store.current_user_data,
                   lng: result.userdata.lng,
+                },
+              });
+              setStore({
+                current_user_data: {
+                  ...store.current_user_data,
+                  sexo: result.userdata.sexo,
+                },
+              });
+              setStore({
+                current_user_data: {
+                  ...store.current_user_data,
+                  nacimiento: result.userdata.nacimiento,
                 },
               });
             } else if (result.userdata.role == "Empresa") {
@@ -297,7 +423,7 @@ const getState = ({ getStore, getActions, setStore }) => {
               "user",
               JSON.stringify(store.current_user_data)
             );
-
+            getActions().favorites_loadinator();
             return true;
           } else {
             return result.message;
@@ -310,6 +436,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       isloged: () => {
         const token = localStorage.getItem("jwt-token");
         const user = localStorage.getItem("user");
+        const cart = localStorage.getItem("cart");
 
         // Check if the token exists and is not expired
         if (token) {
@@ -318,7 +445,16 @@ const getState = ({ getStore, getActions, setStore }) => {
           const currentTime = Date.now();
 
           if (currentTime >= expirationTime) {
-            Swal.fire("Session timed out");
+            toast.error("Session timed out", {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
             setStore({ isloged: false });
             localStorage.clear();
             return false;
@@ -327,6 +463,15 @@ const getState = ({ getStore, getActions, setStore }) => {
           setStore({ jwt_token: token });
           setStore({ isloged: true });
           setStore({ current_user_data: JSON.parse(user) });
+          setStore({ cart: JSON.parse(cart) });
+          if (cart == null) {
+            setStore({
+              cart: {
+                products: [],
+                ammount: 0,
+              },
+            });
+          }
           return true;
         }
 
@@ -434,31 +579,44 @@ const getState = ({ getStore, getActions, setStore }) => {
           .catch((error) => console.log(error));
       },
 
-      filterFavorites: () => {
+      filterFavorites: async () => {
         const store = getStore();
         const filtrarfavoritos = {
           // lo que se ponga aquí tiene que coincidir con el back nombre:
           idCliente: store.current_user_data.id,
         };
         const token = localStorage.getItem("jwt-token");
-        fetch(process.env.BACKEND_URL + "/api/filterFavorites", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify(filtrarfavoritos),
-        })
-          .then((response) => response.json())
-          .then((result) => {
-            if (response.status == 401) {
-              Swal.fire(result.msg);
-
-              navigate("/", { replace: true });
+        try {
+          const response = await fetch(
+            process.env.BACKEND_URL + "/api/filterFavorites",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token,
+              },
+              body: JSON.stringify(filtrarfavoritos),
             }
-          })
-          .then((result) => setStore({ searchCompany: result }))
-          .catch((error) => console.log(error));
+          );
+          const result = await response.json();
+
+          if (response.status == 401) {
+            toast.error(result.msg, {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
+            navigate("/", { replace: true });
+          }
+          setStore({ searchCompany: result });
+        } catch (error) {
+          console.log("Error loading message from backend");
+        }
       },
       caregory_filtrator: async (category) => {
         const store = getStore();
@@ -503,6 +661,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       logoutinator: () => {
         setStore({ isloged: false });
         localStorage.clear();
+        setStore({ current_user_data: {} });
       },
       addProduct: async (nombre, precio, descripcion, img) => {
         const store = getStore();
@@ -513,7 +672,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           idEmpresa: store.current_user_data.idEmpresa,
           img: img,
         };
-        console.log(newProduct);
+
         try {
           const token = localStorage.getItem("jwt-token");
           const response = await fetch(
@@ -529,11 +688,19 @@ const getState = ({ getStore, getActions, setStore }) => {
           );
           const result = await response.json();
           if (response.status == 401) {
-            Swal.fire(result.msg);
+            toast.error(result.msg, {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
 
             navigate("/", { replace: true });
           }
-          Swal.fire(result.message);
           if (response.status == 200) {
             console.log(response);
             return true;
@@ -543,17 +710,73 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log(error);
         }
       },
-      buyProduct: (nombre, precio, descripcion, img, cantidad, id) => {
-        setStore({
-          product: {
-            nombre: nombre,
-            precio: precio,
-            descripcion: descripcion,
-            img: img,
-            cantidad: cantidad,
-            id: id,
-          },
+      buyProduct: (
+        nombre,
+        precio,
+        descripcion,
+        img,
+        cantidad,
+        id,
+        company_id,
+        company_name
+      ) => {
+        const store = getStore();
+        let newProduct = {
+          nombre: nombre,
+          precio: precio,
+          descripcion: descripcion,
+          img: img,
+          cantidad: cantidad,
+          id: id,
+          company_id: company_id,
+          company_name: company_name,
+        };
+
+        let company_exists = store.cart.products.findIndex((x) => {
+          return x.hasOwnProperty(company_id);
         });
+
+        if (company_exists != -1) {
+          let product_exists = store.cart.products[company_exists][
+            company_id
+          ].findIndex((x) => x.id === newProduct.id);
+          if (product_exists != -1) {
+            newProduct.cantidad =
+              store.cart.products[company_exists][company_id][product_exists]
+                .cantidad + 1;
+            let products = store.cart.products;
+            products[company_exists][company_id][product_exists] = newProduct;
+            setStore({
+              cart: {
+                products: products,
+                ammount: store.cart.ammount,
+              },
+            });
+          } else {
+            let products = store.cart.products;
+
+            products[company_exists][company_id].push(newProduct);
+            setStore({
+              cart: {
+                products: products,
+                ammount: store.cart.ammount,
+              },
+            });
+          }
+        } else {
+          console.log(store.cart.products);
+          setStore({
+            cart: {
+              products: [
+                ...store.cart.products,
+                { [company_id]: [newProduct] },
+              ],
+              ammount: store.cart.ammount + 1,
+            },
+          });
+        }
+
+        localStorage.setItem("cart", JSON.stringify(store.cart));
       },
       checkout_configurator(checkout_data) {
         const store = getStore();
@@ -565,10 +788,97 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
         /*this in checkoutform */
       },
-      top_5_searchinator:() => {
-        const store = getStore()
-        setStore({searchCompany: store.top_5})
-      }
+      top_5_searchinator: () => {
+        const store = getStore();
+        setStore({ searchCompany: store.top_5 });
+      },
+      product_deletinator: (product_id, company_id) => {
+        const store = getStore();
+        let products = store.cart.products;
+
+        let company_index = products.findIndex((x) => {
+          return x.hasOwnProperty(company_id);
+        });
+
+        let company_products = products[company_index][company_id];
+
+        let product_index = company_products.findIndex(
+          (x) => x.id === product_id
+        );
+        company_products.splice(product_index, 1);
+        if (company_products.length > 0) {
+          products[company_index][company_id] = company_products;
+          setStore({
+            cart: {
+              products: products,
+              ammount: store.cart.ammount,
+            },
+          });
+          localStorage.setItem("cart", JSON.stringify(store.cart));
+        } else {
+          getActions().company_deletinator(company_id);
+        }
+      },
+      company_deletinator: (company_id) => {
+        const store = getStore();
+        let products = store.cart.products;
+
+        let company_index = products.findIndex((x) => {
+          return x.hasOwnProperty(company_id);
+        });
+
+        products.splice(company_index, 1);
+        setStore({
+          cart: {
+            products: products,
+            ammount: store.cart.ammount - 1,
+          },
+        });
+        localStorage.setItem("cart", JSON.stringify(store.cart));
+      },
+      favorites_loadinator: async () => {
+        const store = getStore();
+        console.log(store.current_user_data.id);
+        try {
+          const token = localStorage.getItem("jwt-token");
+          const response = await fetch(
+            process.env.BACKEND_URL +
+              `/api/favorites/${store.current_user_data.id}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token,
+              },
+            }
+          );
+          const result = await response.json();
+          if (response.status == 401) {
+            toast.error(result.msg, {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
+          }
+          if (response.status == 200) {
+            setStore({
+              current_user_data: {
+                ...store.current_user_data,
+                user_fav: result,
+              },
+            });
+          }
+          return false;
+        } catch (error) {
+          console.log(error);
+        }
+      },
+     
     },
   };
 };

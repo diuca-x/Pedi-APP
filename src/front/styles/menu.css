@@ -40,13 +40,13 @@
         margin: 2rem
     }
     .menu_title{
-        font-size: 18px;
-    }
-    .menu_price_text{
         font-size: 15px;
     }
-    .menu_description{
+    .menu_price_text{
         font-size: 13px;
+    }
+    .menu_description{
+        font-size: 10px;
     }
 }
 

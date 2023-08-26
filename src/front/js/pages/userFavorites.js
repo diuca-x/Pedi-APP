@@ -9,6 +9,8 @@ import User_order from "../component/user_order";
 import User_profile_menu from "../component/user_profile_menu";
 import "../../styles/userProfileMenu.css";
 import "../../styles/userFavorites.css";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const UserFavorites = () => {
   const { store, actions } = useContext(Context);
@@ -18,10 +20,10 @@ const UserFavorites = () => {
       try {
         const token = localStorage.getItem("jwt-token");
         const response = await fetch(
-          process.env.BACKEND_URL + "/api/favorites",
+          process.env.BACKEND_URL +
+            `/api/favorites/${store.current_user_data.id}`,
           {
-            method: "POST",
-            body: JSON.stringify({ id: store.current_user_data.id }),
+            method: "GET",
             headers: {
               "Content-Type": "application/json",
               Authorization: "Bearer " + token,
@@ -30,31 +32,41 @@ const UserFavorites = () => {
         );
         const result = await response.json();
         if (response.status == 401) {
-          Swal.fire(result.msg);
+          toast.error(result.msg, {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
           navigate("/", { replace: true });
         }
-        setFavorites(result.favorites);
+        setFavorites(result);
       } catch (error) {
         console.log("Error loading message from backend");
       }
     })();
   }, [store.current_user_data]);
-
+  console.log(favorites);
   return (
     <>
       <div className="container-fluid container-user-profile">
         <div className="row ">
           <User_profile_menu />
-          <div className="col-12 col-md-7 acount_fav_box  ">
+
+          <div className="col-12 col-md-7 acount_basic_info  ">
             <h1 className="title_acount_user">Your favorites</h1>
             {favorites &&
               favorites.map((x, index) => {
-                console.log(x);
                 return <User_favorites company={x} key={index} />;
               })}
           </div>
         </div>
       </div>
+      <ToastContainer />
     </>
   );
 };

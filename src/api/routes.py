@@ -27,6 +27,8 @@ import cloudinary.uploader
 from datetime import datetime
 import stripe
 from argon2 import PasswordHasher
+import math
+
 
 ph = PasswordHasher()
 stripe.api_key = "sk_test_51NShHZGaOqlS5geCWJ4pA2RkcPB3jcXCFTp15A8ARNaJciSz6ezxsS12MGRrSsfVe1xtTrhlA5W4nyPKqE5w6DBu00vfdqAxLm"
@@ -43,39 +45,48 @@ def geopy_processinator(address):
     location = geolocator.geocode(address, language="es", timeout=None)
     return location
 
-def checkout (product_id, quantity, price, delivery, pay_id, user_id, time, date):
-    product = Productos.query.filter_by(id = product_id).first()
+def bill_creatinator(user_id,company_id,delivery,pay_id,time,date  ):    
+    
+    to_add = Factura(idCliente = user_id, idEmpresa = company_id, idPago = pay_id, delivery = delivery, hora = time, fecha = date)
+    
+    db.session.add(to_add)
+    db.session.commit()
+    return to_add.id  
 
-    if not product:
-        return False
-
+def history_creator (product_id, quantity, price,bill_id):
     
 
     checkoutData = {
         "price": price ,
         "quantity" : quantity,
         "product_id" : product_id,
-        "company_id" : product.empresa.id,
-        "delivery" : delivery,
-        "pay_id": pay_id,
-        "user_id" : user_id,
-        "time" : time,
-        "date" : date
+        "bill_id" : bill_id
     }
     
-    bill_to_add = Factura(idCliente = checkoutData.get("user_id"), idEmpresa = checkoutData.get("company_id"), idPago = checkoutData.get("pay_id"), delivery = checkoutData.get("delivery"),  hora = checkoutData.get("time"), fecha = checkoutData.get("date"))
-    db.session.add(bill_to_add)
-    db.session.commit()
 
-    history_to_add = HistorialPedidos(idFactura =bill_to_add.id , idProducto = checkoutData.get("product_id") , cantidad = checkoutData.get("quantity"), precioActual = checkoutData.get("price"))
+    history_to_add = HistorialPedidos(idFactura =bill_id , idProducto = checkoutData.get("product_id") , cantidad = checkoutData.get("quantity"), precioActual = checkoutData.get("price"))
     db.session.add(history_to_add)
     db.session.commit()
 
     print(history_to_add.serialize())
-    print(bill_to_add.serialize())
+    
 
     return True
     
+def average_getinator(company_id):
+    reviews = Reseñas.query.filter_by(idEmpresa = company_id).all()
+    n = len(reviews)
+    s = 0 
+    for i in reviews:
+        s += i.puntuacion
+
+    if s == 0:
+        return "no reviews yet"
+    else: 
+        return f"{round(s/n, 2)}/5"
+    
+
+
 @api.route("/hello", methods=["POST", "GET"])
 def handle_hello():
     response_body = {
@@ -100,9 +111,11 @@ def loginator():
         if not user:
             return jsonify({"message": "Wrong username or password"}), 400
         else:
-            if(not ph.verify(hash, password)):
-                 return jsonify({"message": "Wrong username or password"}), 400
-
+            try:
+                if(not ph.verify(user.password,password)):
+                    return jsonify({"message": "Wrong username or password"}), 400
+            except: 
+                return jsonify({"message": "Wrong username or password"}), 400
             role = user.role
             
             if role == "Cliente":
@@ -144,14 +157,14 @@ def signupCliente():
     password = data.get("password")
     role = "Cliente"
     nombre = data.get("nombre")
-    apellido = data.get("apellido")
-    telefono = data.get("telefono")
-    nacimiento = data.get("nacimiento")
-    sexo = data.get("sexo")
+    # apellido = data.get("apellido")
+    # telefono = data.get("telefono")
+    # nacimiento = data.get("nacimiento")
+    # sexo = data.get("sexo")
     direccion = data.get("direccion")
     instrucciones = data.get("instrucciones")
 
-    if not email or not password or not nombre or not apellido or not telefono or not nacimiento :
+    if not email or not password or not nombre:
         return jsonify({"message": "missing data"}),400
     
     existe = Usuario.query.filter_by(email=email).first()
@@ -172,13 +185,55 @@ def signupCliente():
     db.session.commit()
 
     
-    addCliente = Cliente(nombre=nombre, apellido=apellido, sexo=sexo, nacimiento=nacimiento, telefono=telefono, instrucciones=instrucciones, is_active=True, idUsuario = addUsuario.id)
+    addCliente = Cliente(nombre=nombre, instrucciones=instrucciones, is_active=True, idUsuario = addUsuario.id)
     db.session.add(addCliente)
     db.session.commit()
 
     
-    return jsonify({"message": "Sign up successfull"})
-    
+    return jsonify({"message": "Sign up successfully"})
+
+@api.route("/userProfile/info/<int:idCliente>", methods=["PUT"])
+@jwt_required()
+def addInfoCliente(idCliente):
+    data = request.json
+    cliente = Cliente.query.get(idCliente)
+
+    if not cliente:
+        return jsonify({"message": "Cliente not found"}), 404
+
+    if "telefono" in data:
+        cliente.telefono = data.get("telefono")
+    if "nacimiento" in data:
+        cliente.nacimiento = data.get("nacimiento")
+    if "sexo" in data:
+        cliente.sexo = data.get("sexo")
+
+    db.session.commit()
+    return jsonify({"message": "Cliente updated successfully"}), 200
+
+# @api.route("/userProfile/info", methods=["PUT"])
+# @jwt_required()
+# def addInfoCliente():
+#     data = request.json
+#     id = data.get("id")
+
+#     if not id:
+#         return jsonify({"message": "Invalid request. Missing id"}), 400
+
+#     cliente = Cliente.query.get(id)
+
+#     if not cliente:
+#         return jsonify({"message": "Cliente not found"}), 404
+
+#     if "telefono" in data:
+#         cliente.telefono = data.get("telefono")
+#     if "nacimiento" in data:
+#         cliente.nacimiento = data.get("nacimiento")
+#     if "sexo" in data:
+#         cliente.sexo = data.get("sexo")
+
+#     db.session.commit()
+#     return jsonify({"message": "Cliente updated successfully"}), 200
 
 @api.route("/signupEmpresa", methods = ["POST"])
 def signupEmpresa():
@@ -242,7 +297,7 @@ def signupEmpresa():
 
     
 
-    return jsonify({"message": "Sign up successfull"}),200
+    return jsonify({"message": "Sign up successfully"}),200
 
 @api.route("/category", methods = ["POST"])
 def category_creatinator():
@@ -306,9 +361,14 @@ def top_sales_loadinator():
     data_to_return = []
     for i in companys:
         if ( i.id in top_5 ):
-            print(i)
-            company = i.serialize()
-            data_to_return.append(company)
+             
+            to_add = i.serialize()
+            avg = average_getinator(to_add.get("id")) 
+            
+            to_add["average"] = avg
+            
+            
+            data_to_return.append(to_add)
 
     return jsonify({"top_5_data":data_to_return}),200
 
@@ -423,26 +483,6 @@ def bill_getinator():
         return jsonify({"bills":serialized_bills}),200
 
 
-@api.route("/billCreator", methods=['POST'])
-def bill_creatinator():
-    data = request.json
-    client_id = data.get("client_id")
-    company_id = data.get("company_id")
-    pay_id = data.get("pay_id")
-    delivery = data.get("delivery")
-    time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    
-    
-
-    if not client_id or not company_id or not pay_id or not delivery or not date or not time:
-        return jsonify({"message":"Error, missing data"}),400
-    
-    to_add = Factura(idCliente = client_id, idEmpresa = company_id, idPago = pay_id, delivery = delivery, hora = time, fecha = date)
-    
-    db.session.add(to_add)
-    db.session.commit()
-    return jsonify({"message" : "added" , "bill" : to_add.serialize()}),200
 
 @api.route("/historyCreator", methods=['POST'])
 def history_addinator():
@@ -508,27 +548,34 @@ def product_addinator():
 @api.route("/favoriteCreator", methods=['POST'])
 def favorite_addinator():
     data = request.json
+    
     user_id = data.get("user_id")
     company_id = data.get("company_id")
-    
-    if not user_id or not company_id:
-        return jsonify({"message":"Error, missing data"}),400
-    to_add = Favoritos (idCliente = user_id, idEmpresa = company_id)
-    
-    db.session.add(to_add)
-    db.session.commit()
 
-    return jsonify({"message" : "added" , "faved" : to_add.serialize()}),200
+    exists = Favoritos.query.filter_by(idCliente = user_id, idEmpresa = company_id).first()
+    print(exists)
+    if not exists:
+        if not user_id or not company_id:
+            return jsonify({"message":"Error, missing data"}),400
+        to_add = Favoritos (idCliente = user_id, idEmpresa = company_id)
+        
+        db.session.add(to_add)
+        db.session.commit()
+        return jsonify({"message" : "Restaurant added to favorites" , "faved" : to_add.serialize()}),200
+    else:
+        db.session.delete(exists)
+        db.session.commit()
+        return jsonify({"message" : "Restaurant deleted from favorites"}),200
 
-@api.route("/favorites", methods=['POST'])
+@api.route("/favorites/<int:client_id>", methods=['GET'])
 @jwt_required()
-def favorites_getinator():
-    data = request.json
-    user_id = data.get("id")
+def favorites_getinator(client_id):
+    
+   
 
-    if not user_id:
+    if not client_id:
         return jsonify({"message" : "Error, need to know the user"})
-    favorites = Favoritos.query.filter_by(idCliente = user_id).all()
+    favorites = Favoritos.query.filter_by(idCliente = client_id).all()
     
     if not favorites:
         return jsonify({"favorites" : []}),200
@@ -539,8 +586,8 @@ def favorites_getinator():
         add["direccion"] = i.empresa.usuario.direccion
         serialized_favorites.append(add)
 
-    
-    return jsonify({"favorites":serialized_favorites}),200
+
+    return jsonify(serialized_favorites),200
 
 @api.route("/stars", methods=['POST'])
 @jwt_required()
@@ -552,25 +599,37 @@ def stars_poll():
     reseña = "Nada"
     time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    print(data)
+    
 
     if not user_id or not company_id or not puntuacion:
          return jsonify({"message":"Error, missing data"}),400
 
-    addReseña = Reseñas(idCliente = user_id, idEmpresa = company_id, puntuacion = puntuacion, reseña = reseña, hora = time, fecha = date)
-    db.session.add(addReseña)
-    db.session.commit()
-
-    return jsonify({"message": "you have valued successfull"}),200
+    exists = Reseñas.query.filter_by(idCliente = user_id, idEmpresa = company_id).first()
+    
+    if exists:
+        print (exists.serialize()) 
+        exists.puntuacion = puntuacion
+        exists.reseña = reseña
+        exists.hora = time
+        exists.fecha = date
+        db.session.commit()
+        return jsonify({"message": "Your previous rating was modified succesfully"}),200
+    else:
+        addReseña = Reseñas(idCliente = user_id, idEmpresa = company_id, puntuacion = puntuacion, reseña = reseña, hora = time, fecha = date)
+        db.session.add(addReseña)
+        db.session.commit()
+        return jsonify({"message": "You have valued successfully, thank you!"}),200
 
 @api.route("/empresa/<id>", methods=['GET'])
 def infoEmpresa(id):
-    empresa = Empresa.query.get(id)
+    empresa = Empresa.query.filter_by(id = id).first()
     if not empresa:
         return jsonify({"message": "empresa not found"}), 400
     
-    idUsuario = empresa.id
-    usuario = Usuario.query.get(idUsuario)
+    idUsuario = empresa.idUsuario
+    usuario = Usuario.query.filter_by(id = idUsuario).first()
+    usuarios = Usuario.query.all()
+    
     if not usuario:
         return jsonify({"message": "usuario not found"}), 400
     
@@ -607,13 +666,13 @@ def menuEmpresa(id):
     
     productos = empresa.productos
     if not productos:
-        return jsonify({"message": "productos not found"}), 400
+        return jsonify({"products": [], "company_data" :empresa.serialize() }), 400
     
     serialized_productos = [producto.serialize() for producto in productos]
-    return jsonify(serialized_productos), 200
+    return jsonify({"products": serialized_productos, "company_data" :empresa.serialize() }), 200
 
-def calculate_order_amount(items):
-    amount = int(items.get("precio") * items.get("cantidad") * 100* 1.21)
+def calculate_order_amount(price):
+    amount = int(price * 100)
     return amount
 
 @api.route('/create-payment-intent', methods=['POST'])
@@ -622,30 +681,29 @@ def create_payment():
     try:
         
         data = request.json
-        product_id = data.get("product_id")
-        quantity = data.get("cantidad")
+        products = data.get("products")
         price = data.get("precio")
         delivery = data.get("delivery")
         pay_id = data.get("pay_method")
         user_id = data.get("user_id")
+        company_id = data.get("company_id")
         time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
         date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 
         
-        if not product_id or not quantity or not price or not pay_id or not user_id:
+        if not products or not price or not pay_id or not user_id or not company_id:
             return jsonify({"message": "Missing data"}), 400
     
         
         intent = stripe.PaymentIntent.create(
-            amount=calculate_order_amount(data),
+            amount=calculate_order_amount(price),
             currency='usd'
         )
-        print(data)
+        
         
         pay_id = intent["client_secret"]
 
-        checkout(product_id, quantity, price, delivery, pay_id, user_id, time, date)
-        
+       
         # ----------------------------------------------------------------------agregar para meter entradas a la tabla de facturas e historial de pedidos
         return jsonify({
           'clientSecret': intent['client_secret']
@@ -667,9 +725,14 @@ def search_empresa():
 #  empresas = Empresa.query.filter(Empresa.nombre.ilike(f"%{searchEmpresa}%")).all()
    resultados = []
    for empresa in empresas:
-        resultados.append(empresa.serialize())
+        to_add = empresa.serialize()
+        avg = average_getinator(to_add.get("id")) 
+        
+        to_add["average"] = avg
+        
+        resultados.append(to_add)
     
-   print(resultados)
+   
 
    if not empresas:
        return jsonify({"message": "Not found"}), 400
@@ -684,7 +747,16 @@ def filterByDelivery():
        return jsonify({"message": "No company does delivery"}), 400
     
     for empresa in empresas:
-        resultados.append(empresa.serialize())
+        
+            to_add = empresa.serialize()
+            avg = average_getinator(to_add.get("id")) 
+            
+            to_add["average"] = avg
+            
+            resultados.append(to_add)
+    
+   
+        
 
     return jsonify(resultados)
 
@@ -699,7 +771,15 @@ def filterByFavorites():
         return jsonify([])
     
     for empresa in empresas:
-        resultados.append(empresa.serialize())
+        to_add = empresa.empresa.serialize()
+        avg = average_getinator(to_add.get("id")) 
+        
+        to_add["average"] = avg
+       
+        resultados.append(to_add)
+    
+    print(resultados)
+        
     
     return jsonify(resultados),200
 
@@ -728,38 +808,40 @@ def company_getinator():
 @jwt_required()
 def checkout_configurator():
     data = request.json
-    product_id = data.get("product_id")
-    quantity = data.get("cantidad")
-    price = data.get("precio")
-    delivery = data.get("delivery")
-    pay_id = data.get("pay_method")
-    user_id = data.get("user_id")
+    products = data.get("products")
+    delivery = data.get("delivery")      
+    pay_id = data.get("pay_method")      
+    user_id = data.get("user_id")        
+    company_id = data.get("company_id")  
     time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 
-    if not product_id or not quantity or not price or not pay_id or not user_id:
+    if not products or not pay_id or not user_id or not company_id:
         return jsonify({"message": "Missing data"}), 400 
-    
-    checkout(product_id, quantity, price, delivery, pay_id, user_id, time, date)
 
-    if (checkout):
-        return jsonify({"message" : "asd"}),200
-    else :
-        return jsonify({"message": "product doesnt exist"}), 400 
+              
+    bill_id = bill_creatinator(user_id,company_id,delivery,pay_id,time,date )    
+    for i in products: 
+        checkout = history_creator(i.get("id"), i.get("cantidad"), i.get("precio"),bill_id)
+
+        if not checkout:
+            return jsonify({"message" : "product doesnt exist"}), 400
     
-    
+    return jsonify({"message": "exito"}), 200 
+        
+
 
 @api.route("/companyget", methods=["POST"])
 @jwt_required()
 def company_selectinator():     
     data = request.json
-    product_id = data.get("id")
+    company_id = data.get("id")
 
-    product = Productos.query.filter_by(id = product_id).first()
+    company = Empresa.query.filter_by(id = company_id).first()
     
-    if not product: 
-        return jsonify({"message": "product doesnt exist"}), 400 
-    return jsonify({"company": product.empresa.serialize()}), 200 
+    if not company: 
+        return jsonify({"message": "company doesnt exist"}), 400 
+    return jsonify({"company": company.serialize()}), 200 
 
 
 @api.route("/filter_category", methods=["POST"])
@@ -775,6 +857,17 @@ def category_filtrator():
         return jsonify([])
     
     for i in companies:
-        resultados.append(i.empresa.serialize())
+            to_add = i.empresa.serialize()
+            avg = average_getinator(i.empresa.id) 
+            
+            to_add["average"] = avg
+            
+            resultados.append(to_add)
+    
+    
+        
     
     return jsonify(resultados),200
+
+
+    
